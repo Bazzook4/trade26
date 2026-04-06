@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option Stop Loss Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #0f1117;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 16px 64px;
+      color: #e2e8f0;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 14px;
+      padding: 28px 28px 32px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.02em;
+      color: #fff;
+      margin-bottom: 22px;
+    }
+
+    /* CE / PE toggle */
+    .toggle-row {
+      display: flex;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .toggle-row input[type="radio"] { display: none; }
+    .toggle-row label {
+      flex: 1;
+      text-align: center;
+      padding: 9px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #8892b0;
+      transition: background 0.18s, color 0.18s;
+    }
+    #opt-ce:checked ~ .toggle-row label[for="opt-ce"],
+    #opt-pe:checked ~ .toggle-row label[for="opt-pe"] { background: #2563eb; color: #fff; }
+    /* put radios before toggle-row in DOM so sibling selector works */
+    .toggle-wrapper { position: relative; margin-bottom: 22px; }
+    .toggle-wrapper input[type="radio"] { display: none; }
+    .toggle-wrapper .toggle-row label { transition: background 0.18s, color 0.18s; }
+    .toggle-wrapper input#opt-ce:checked ~ .toggle-row label[for="opt-ce"] { background: #16a34a; color: #fff; }
+    .toggle-wrapper input#opt-pe:checked ~ .toggle-row label[for="opt-pe"] { background: #dc2626; color: #fff; }
+
+    /* Field grid */
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+    .field { display: flex; flex-direction: column; }
+    .field.full { grid-column: 1 / -1; }
+
+    label.field-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #8892b0;
+      margin-bottom: 5px;
+    }
+
+    input[type="number"] {
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 7px;
+      color: #e2e8f0;
+      padding: 9px 11px;
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+    }
+    input.error { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+    .field-error { font-size: 0.72rem; color: #f87171; margin-top: 3px; min-height: 14px; }
+
+    .hint { font-size: 0.72rem; color: #4a5568; margin-top: 3px; }
+
+    /* Calculate button */
+    button#calc {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: background 0.15s, transform 0.08s;
+    }
+    button#calc:hover { background: #1d4ed8; }
+    button#calc:active { transform: scale(0.98); }
+
+    /* Results */
+    .results {
+      margin-top: 20px;
+      border-radius: 9px;
+      overflow: hidden;
+      border: 1px solid #2d3148;
+      display: none;
+    }
+    .results.visible { display: block; }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 14px;
+      border-bottom: 1px solid #2d3148;
+      font-size: 0.92rem;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-label { color: #8892b0; font-size: 0.82rem; font-weight: 500; }
+    .result-value { font-weight: 700; font-size: 1rem; }
+    .val-sl   { color: #f59e0b; }
+    .val-risk { color: #f87171; }
+    .val-tgt  { color: #4ade80; }
+    .val-profit { color: #4ade80; }
+    .val-be   { color: #60a5fa; }
+    .val-cap  { color: #c084fc; }
+    .val-rr   { color: #e2e8f0; }
+
+    .results-header {
+      background: #12151f;
+      padding: 8px 14px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4a5568;
+      border-bottom: 1px solid #2d3148;
+    }
+
+    .validation-msg {
+      margin-top: 12px;
+      font-size: 0.82rem;
+      color: #f87171;
+      display: none;
+      text-align: center;
+    }
+    .validation-msg.visible { display: block; }
+
+    /* Practices section */
+    .practices {
+      margin-top: 32px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .practices h2 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #4a5568;
+      margin-bottom: 12px;
+      padding-left: 2px;
+    }
+
+    .practice-group {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .practice-group summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      cursor: pointer;
+      list-style: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      user-select: none;
+    }
+    .practice-group summary::-webkit-details-marker { display: none; }
+    .practice-group summary .pg-icon {
+      font-size: 1rem;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .practice-group summary .pg-title { flex: 1; }
+    .practice-group summary .pg-chevron {
+      font-size: 0.7rem;
+      color: #4a5568;
+      transition: transform 0.2s;
+    }
+    .practice-group[open] summary .pg-chevron { transform: rotate(180deg); }
+
+    .practice-body {
+      border-top: 1px solid #2d3148;
+      padding: 0;
+    }
+
+    .practice-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #1e2235;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #94a3b8;
+    }
+    .practice-item:last-child { border-bottom: none; }
+    .practice-item .dot {
+      flex-shrink: 0;
+      margin-top: 6px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #3b82f6;
+    }
+    .practice-item strong { color: #e2e8f0; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>CE / PE Stop Loss Calculator</h1>
+
+  <!-- Option type toggle -->
+  <div class="toggle-wrapper">
+    <input type="radio" name="optType" id="opt-ce" value="CE" checked>
+    <input type="radio" name="optType" id="opt-pe" value="PE">
+    <div class="toggle-row" role="group" aria-label="Option type">
+      <label for="opt-ce">CALL (CE)</label>
+      <label for="opt-pe">PUT (PE)</label>
+    </div>
+  </div>
+
+  <div class="fields">
+    <!-- Entry Price -->
+    <div class="field full">
+      <label class="field-label" for="entry">Entry Price (₹)</label>
+      <input type="number" id="entry" placeholder="e.g. 75" min="0.01" step="0.01" autocomplete="off">
+      <span class="field-error" id="err-entry" aria-live="polite"></span>
+    </div>
+
+    <!-- Max Loss -->
+    <div class="field">
+      <label class="field-label" for="maxLoss">Max Loss (₹)</label>
+      <input type="number" id="maxLoss" placeholder="e.g. 2000" min="1" step="1" autocomplete="off">
+      <span class="field-error" id="err-maxLoss" aria-live="polite"></span>
+    </div>
+
+    <!-- R:R -->
+    <div class="field">
+      <label class="field-label" for="rr">Risk : Reward</label>
+      <input type="number" id="rr" value="2" min="0.1" step="0.1" autocomplete="off">
+      <span class="hint">Target = 1 : <span id="rr-preview">2</span></span>
+    </div>
+
+    <!-- Lot size -->
+    <div class="field">
+      <label class="field-label" for="lotSize">Lot Size</label>
+      <input type="number" id="lotSize" value="65" min="1" step="1" autocomplete="off">
+      <span class="field-error" id="err-lotSize" aria-live="polite"></span>
+    </div>
+
+    <!-- Number of lots -->
+    <div class="field">
+      <label class="field-label" for="lots">No. of Lots</label>
+      <input type="number" id="lots" value="1" min="1" step="1" autocomplete="off">
+      <span class="field-error" id="err-lots" aria-live="polite"></span>
+    </div>
+
+    <!-- Premium paid (optional) -->
+    <div class="field full">
+      <label class="field-label" for="premium">Premium Paid (₹) <span style="font-weight:400;text-transform:none;letter-spacing:0">&mdash; optional</span></label>
+      <input type="number" id="premium" placeholder="Leave blank if same as entry" min="0.01" step="0.01" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- Live SL badge -->
+  <div id="sl-badge" style="display:none; margin-top:16px; background:#12151f; border:1px solid #2d3148; border-radius:8px; padding:10px 14px; justify-content:space-between; align-items:center;">
+    <span style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:#4a5568;">Auto Stop Loss</span>
+    <span id="sl-badge-val" style="font-size:1.05rem; font-weight:700; color:#f59e0b;">—</span>
+  </div>
+
+  <p class="validation-msg" id="val-msg" style="display:none;"></p>
+
+  <div class="results" id="output" role="region" aria-label="Calculation results" aria-live="polite">
+    <div class="results-header">Results</div>
+    <div class="result-row">
+      <span class="result-label">Stop Loss Price</span>
+      <span class="result-value val-sl" id="r-sl">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Total Risk</span>
+      <span class="result-value val-risk" id="r-risk">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Target Price</span>
+      <span class="result-value val-tgt" id="r-tgt">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Profit at Target</span>
+      <span class="result-value val-profit" id="r-profit">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Breakeven Price</span>
+      <span class="result-value val-be" id="r-be">—</span>
+    </div>
+    <div class="result-row" id="row-cap" style="display:none">
+      <span class="result-label">Capital Deployed</span>
+      <span class="result-value val-cap" id="r-cap">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">Actual R:R</span>
+      <span class="result-value val-rr" id="r-rr">—</span>
+    </div>
+  </div>
+</div>
+
+<section class="practices" aria-label="F&amp;O Best Practices">
+  <h2>F&amp;O Best Practices</h2>
+
+  <details class="practice-group" open>
+    <summary>
+      <span class="pg-icon">📐</span>
+      <span class="pg-title">Position Sizing</span>
+      <span class="pg-chevron">▼</span>
+    </summary>
+    <div class="practice-body">
+      <div class="practice-item"><span class="dot"></span><span>Never risk more than <strong>1–2% of total capital</strong> on a single trade.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Define your <strong>max loss in rupees</strong> before entry — not as a % you calculate after the fact.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Keep F&amp;O capital <strong>separate</strong> from your core portfolio. Treat it as a fixed speculation budget.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Deploy max <strong>20–30% of F&amp;O capital</strong> in any single week.</span></div>
+    </div>
+  </details>
+
+  <details class="practice-group">
+    <summary>
+      <span class="pg-icon">🛑</span>
+      <span class="pg-title">Stop Loss Discipline</span>
+      <span class="pg-chevron">▼</span>
+    </summary>
+    <div class="practice-body">
+      <div class="practice-item"><span class="dot"></span><span>Define your exit <strong>before</strong> entry — never after the trade goes against you.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>A <strong>30–50% drop in premium</strong> is a common SL zone for long options.</span></div>
+      <div class="practice-item"><span class="dot"></span><span><strong>Never average down</strong> on a losing option — time decay accelerates losses the longer you hold.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>If you've hit your <strong>monthly max loss, stop trading</strong> for the rest of the month.</span></div>
+    </div>
+  </details>
+
+  <details class="practice-group">
+    <summary>
+      <span class="pg-icon">⚖️</span>
+      <span class="pg-title">Risk : Reward</span>
+      <span class="pg-chevron">▼</span>
+    </summary>
+    <div class="practice-body">
+      <div class="practice-item"><span class="dot"></span><span>Minimum <strong>1:1.5 R:R</strong> to be viable long-term; <strong>1:2 or better</strong> is ideal.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Even with a <strong>40% win rate</strong>, a 1:2 R:R is profitable — the math works in your favour.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Don't take trades where R:R is <strong>less than 1:1</strong> — the edge isn't there.</span></div>
+    </div>
+  </details>
+
+  <details class="practice-group">
+    <summary>
+      <span class="pg-icon">⏱️</span>
+      <span class="pg-title">Entry Timing</span>
+      <span class="pg-chevron">▼</span>
+    </summary>
+    <div class="practice-body">
+      <div class="practice-item"><span class="dot"></span><span>Avoid buying options on <strong>expiry day</strong> unless scalping — theta decay is brutal.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Buy with <strong>at least 5–7 days to expiry</strong> for positional trades.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Enter on <strong>pullbacks to support</strong>, not at breakout peaks — you pay a far better premium.</span></div>
+    </div>
+  </details>
+
+  <details class="practice-group">
+    <summary>
+      <span class="pg-icon">🧠</span>
+      <span class="pg-title">Mindset</span>
+      <span class="pg-chevron">▼</span>
+    </summary>
+    <div class="practice-body">
+      <div class="practice-item"><span class="dot"></span><span>A loss <strong>within your pre-defined limit</strong> is a good trade — execution mattered, not the outcome.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>Markets are random in the short term. <strong>Edge plays out over 20–30 trades</strong>, not one.</span></div>
+      <div class="practice-item"><span class="dot"></span><span>The goal is <strong>consistency</strong> over sample size — not one big win that changes everything.</span></div>
+    </div>
+  </details>
+</section>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  function fmt(n) {
+    return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function readInputs() {
+    return {
+      entry:   parseFloat($('entry').value),
+      maxLoss: parseFloat($('maxLoss').value),
+      lotSize: parseInt($('lotSize').value),
+      lots:    parseInt($('lots').value),
+      rr:      parseFloat($('rr').value) || 2,
+      premium: $('premium').value.trim() !== '' ? parseFloat($('premium').value) : null,
+      optType: document.querySelector('input[name="optType"]:checked').value,
+    };
+  }
+
+  function computeResults({ entry, maxLoss, lots, lotSize, rr, premium, optType }) {
+    const qty = lots * lotSize;
+    const riskPerUnit = maxLoss / qty;
+    const slPrice = entry - riskPerUnit;
+    const targetPrice = entry + riskPerUnit * rr;
+    const profitAtTarget = maxLoss * rr;
+    const be = premium != null ? (optType === 'CE' ? entry + premium : entry - premium) : null;
+    const capital = premium != null ? premium * qty : null;
+    return { slPrice, targetPrice, profitAtTarget, be, capital, riskPerUnit };
+  }
+
+  function update() {
+    const { entry, maxLoss, lots, lotSize, rr, premium, optType } = readInputs();
+
+    // Live R:R hint
+    $('rr-preview').textContent = isNaN(rr) ? '?' : rr;
+
+    const coreReady = entry > 0 && maxLoss > 0 && lotSize > 0 && lots > 0;
+
+    // Live SL badge — shows as soon as entry + maxLoss + qty are known
+    const badge = $('sl-badge');
+    if (coreReady) {
+      const { slPrice, riskPerUnit } = computeResults({ entry, maxLoss, lots, lotSize, rr, premium, optType });
+      const slPct = (riskPerUnit / entry * 100).toFixed(1);
+      $('sl-badge-val').textContent = `${fmt(slPrice)}  (−${slPct}%)`;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Full results — show once all core fields are valid
+    if (!coreReady) {
+      $('output').classList.remove('visible');
+      return;
+    }
+
+    const { slPrice, riskPerUnit, targetPrice, profitAtTarget, be, capital } =
+      computeResults({ entry, maxLoss, lots, lotSize, rr, premium, optType });
+
+    const slPct = (riskPerUnit / entry * 100).toFixed(1);
+    $('r-sl').textContent     = `${fmt(slPrice)}  (−${slPct}%)`;
+    $('r-risk').textContent   = fmt(maxLoss);
+    $('r-tgt').textContent    = fmt(targetPrice);
+    $('r-profit').textContent = fmt(profitAtTarget);
+    $('r-be').textContent     = be != null ? fmt(be) : '—  (enter premium above)';
+    $('r-rr').textContent     = `1 : ${rr}`;
+
+    const capRow = $('row-cap');
+    if (capital != null) {
+      $('r-cap').textContent = fmt(capital);
+      capRow.style.display = 'flex';
+    } else {
+      capRow.style.display = 'none';
+    }
+
+    $('output').classList.add('visible');
+  }
+
+  // Wire every input to live-update
+  ['entry', 'maxLoss', 'lotSize', 'lots', 'rr', 'premium'].forEach(id => {
+    $(id).addEventListener('input', update);
+  });
+  document.querySelectorAll('input[name="optType"]').forEach(r => {
+    r.addEventListener('change', update);
+  });
+</script>
+
+</body>
+</html>
