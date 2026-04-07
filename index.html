@@ -151,7 +151,9 @@
     .val-profit { color: #4ade80; }
     .val-be   { color: #60a5fa; }
     .val-cap  { color: #c084fc; }
-    .val-rr   { color: #e2e8f0; }
+    .val-rr    { color: #e2e8f0; }
+    .val-theta { color: #fb923c; }
+    .val-range { color: #38bdf8; }
 
     .results-header {
       background: #12151f;
@@ -172,6 +174,40 @@
       text-align: center;
     }
     .validation-msg.visible { display: block; }
+
+    /* Theta / range warning box */
+    .advice-box {
+      margin-top: 14px;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 0.83rem;
+      line-height: 1.55;
+      display: none;
+      border: 1px solid;
+    }
+    .advice-box.visible { display: block; }
+    .advice-box.warn  { background: rgba(251,146,60,0.08); border-color: #fb923c; color: #fdba74; }
+    .advice-box.info  { background: rgba(56,189,248,0.07); border-color: #38bdf8; color: #7dd3fc; }
+    .advice-box strong { color: #fff; }
+
+    /* Last-day checkbox row */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: #8892b0;
+      cursor: pointer;
+      user-select: none;
+    }
+    .checkbox-row input[type="checkbox"] { accent-color: #f59e0b; width: 15px; height: 15px; cursor: pointer; }
+
+    /* Market range toggle */
+    .range-toggle { margin-top: 14px; margin-bottom: 0; }
+    .range-toggle .toggle-row label { font-size: 0.82rem; }
+    .toggle-wrapper input#range-above:checked ~ .toggle-row label[for="range-above"] { background: #0369a1; color: #fff; }
+    .toggle-wrapper input#range-below:checked ~ .toggle-row label[for="range-below"] { background: #7c3aed; color: #fff; }
 
     /* Practices section */
     .practices {
@@ -306,6 +342,25 @@
       <label class="field-label" for="premium">Premium Paid (₹) <span style="font-weight:400;text-transform:none;letter-spacing:0">&mdash; optional</span></label>
       <input type="number" id="premium" placeholder="Leave blank if same as entry" min="0.01" step="0.01" autocomplete="off">
     </div>
+
+    <!-- Days to expiry -->
+    <div class="field full">
+      <label class="field-label" for="dte">Days to Expiry <span style="font-weight:400;text-transform:none;letter-spacing:0">&mdash; optional</span></label>
+      <input type="number" id="dte" placeholder="e.g. 5" min="0" step="1" autocomplete="off">
+      <label class="checkbox-row" id="last-day-label">
+        <input type="checkbox" id="lastDay"> Trading on expiry day (last day)
+      </label>
+    </div>
+  </div>
+
+  <!-- Market range position -->
+  <div class="toggle-wrapper range-toggle">
+    <input type="radio" name="rangePos" id="range-above" value="above" checked>
+    <input type="radio" name="rangePos" id="range-below" value="below">
+    <div class="toggle-row" role="group" aria-label="Position vs market range">
+      <label for="range-above">Trading ABOVE Market Range</label>
+      <label for="range-below">Trading BELOW Market Range</label>
+    </div>
   </div>
 
   <!-- Live SL badge -->
@@ -313,6 +368,10 @@
     <span style="font-size:0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:#4a5568;">Auto Stop Loss</span>
     <span id="sl-badge-val" style="font-size:1.05rem; font-weight:700; color:#f59e0b;">—</span>
   </div>
+
+  <!-- Theta / range advice -->
+  <div class="advice-box" id="advice-theta"></div>
+  <div class="advice-box" id="advice-range"></div>
 
   <p class="validation-msg" id="val-msg" style="display:none;"></p>
 
@@ -345,6 +404,14 @@
     <div class="result-row">
       <span class="result-label">Actual R:R</span>
       <span class="result-value val-rr" id="r-rr">—</span>
+    </div>
+    <div class="result-row" id="row-theta" style="display:none">
+      <span class="result-label">Theta Risk</span>
+      <span class="result-value val-theta" id="r-theta">—</span>
+    </div>
+    <div class="result-row" id="row-range" style="display:none">
+      <span class="result-label">vs Market Range</span>
+      <span class="result-value val-range" id="r-range">—</span>
     </div>
   </div>
 </div>
@@ -429,13 +496,16 @@
 
   function readInputs() {
     return {
-      entry:   parseFloat($('entry').value),
-      maxLoss: parseFloat($('maxLoss').value),
-      lotSize: parseInt($('lotSize').value),
-      lots:    parseInt($('lots').value),
-      rr:      parseFloat($('rr').value) || 2,
-      premium: $('premium').value.trim() !== '' ? parseFloat($('premium').value) : null,
-      optType: document.querySelector('input[name="optType"]:checked').value,
+      entry:    parseFloat($('entry').value),
+      maxLoss:  parseFloat($('maxLoss').value),
+      lotSize:  parseInt($('lotSize').value),
+      lots:     parseInt($('lots').value),
+      rr:       parseFloat($('rr').value) || 2,
+      premium:  $('premium').value.trim() !== '' ? parseFloat($('premium').value) : null,
+      optType:  document.querySelector('input[name="optType"]:checked').value,
+      dte:      $('dte').value.trim() !== '' ? parseInt($('dte').value) : null,
+      lastDay:  $('lastDay').checked,
+      rangePos: document.querySelector('input[name="rangePos"]:checked').value,
     };
   }
 
@@ -450,8 +520,68 @@
     return { slPrice, targetPrice, profitAtTarget, be, capital, riskPerUnit };
   }
 
+  function updateThetaAdvice({ dte, lastDay, optType }) {
+    const box   = $('advice-theta');
+    const row   = $('row-theta');
+    const isLastDay = lastDay || (dte != null && dte === 0);
+
+    if (isLastDay) {
+      box.className = 'advice-box warn visible';
+      box.innerHTML = '<strong>Expiry Day Warning:</strong> Theta decay is at its fastest — option premiums can collapse within minutes. Only trade with a very tight stop and small size. Avoid buying options unless scalping with a clear setup.';
+      row.style.display = 'flex';
+      $('r-theta').textContent = 'Expiry Day — High Risk';
+    } else if (dte != null && dte <= 3) {
+      box.className = 'advice-box warn visible';
+      box.innerHTML = `<strong>${dte} day${dte === 1 ? '' : 's'} to expiry:</strong> Theta decay is accelerating. For long options, any stagnation works against you. Keep target closer and trail your stop.`;
+      row.style.display = 'flex';
+      $('r-theta').textContent = `${dte}d left — Theta Accelerating`;
+    } else if (dte != null && dte <= 7) {
+      box.className = 'advice-box warn visible';
+      box.innerHTML = `<strong>${dte} days to expiry:</strong> Moderate theta decay. Aim to hit target within 1–2 sessions or consider an exit to preserve capital.`;
+      row.style.display = 'flex';
+      $('r-theta').textContent = `${dte}d left — Watch Decay`;
+    } else if (dte != null) {
+      box.className = 'advice-box info visible';
+      box.innerHTML = `<strong>${dte} days to expiry:</strong> Adequate time value remaining. Theta impact is manageable — positional trade is viable.`;
+      row.style.display = 'flex';
+      $('r-theta').textContent = `${dte}d left — Time OK`;
+    } else {
+      box.className = 'advice-box';
+      row.style.display = 'none';
+    }
+  }
+
+  function updateRangeAdvice({ rangePos, optType }) {
+    const box = $('advice-range');
+    const row = $('row-range');
+    const isCE = optType === 'CE';
+
+    if (rangePos === 'above') {
+      if (isCE) {
+        box.className = 'advice-box info visible';
+        box.innerHTML = '<strong>Buying CE above Market Range:</strong> You are chasing a breakout. Ensure volume and momentum confirm the move — avoid buying into resistance on low volume. Premium will be inflated; wait for a retest if possible.';
+        $('r-range').textContent = 'Above Range — Breakout CE';
+      } else {
+        box.className = 'advice-box warn visible';
+        box.innerHTML = '<strong>Buying PE above Market Range:</strong> Counter-trend trade. You are betting on a reversal from highs. Higher probability of a sharp move but the trend is against you — keep size small and SL tight.';
+        $('r-range').textContent = 'Above Range — Counter-trend PE';
+      }
+    } else {
+      if (isCE) {
+        box.className = 'advice-box warn visible';
+        box.innerHTML = '<strong>Buying CE below Market Range:</strong> Counter-trend trade. You are expecting a recovery from lows. Sentiment is bearish — wait for confirmation (e.g. reversal candle, volume spike) before entry.';
+        $('r-range').textContent = 'Below Range — Counter-trend CE';
+      } else {
+        box.className = 'advice-box info visible';
+        box.innerHTML = '<strong>Buying PE below Market Range:</strong> Trend-aligned trade. Market is already breaking down — momentum is in your favour. Watch for support zones where a bounce could hurt your position.';
+        $('r-range').textContent = 'Below Range — Breakdown PE';
+      }
+    }
+    row.style.display = 'flex';
+  }
+
   function update() {
-    const { entry, maxLoss, lots, lotSize, rr, premium, optType } = readInputs();
+    const { entry, maxLoss, lots, lotSize, rr, premium, optType, dte, lastDay, rangePos } = readInputs();
 
     // Live R:R hint
     $('rr-preview').textContent = isNaN(rr) ? '?' : rr;
@@ -468,6 +598,10 @@
     } else {
       badge.style.display = 'none';
     }
+
+    // Theta + range advice (always live, no coreReady gate)
+    updateThetaAdvice({ dte, lastDay, optType });
+    updateRangeAdvice({ rangePos, optType });
 
     // Full results — show once all core fields are valid
     if (!coreReady) {
@@ -498,12 +632,15 @@
   }
 
   // Wire every input to live-update
-  ['entry', 'maxLoss', 'lotSize', 'lots', 'rr', 'premium'].forEach(id => {
+  ['entry', 'maxLoss', 'lotSize', 'lots', 'rr', 'premium', 'dte'].forEach(id => {
     $(id).addEventListener('input', update);
   });
-  document.querySelectorAll('input[name="optType"]').forEach(r => {
-    r.addEventListener('change', update);
-  });
+  $('lastDay').addEventListener('change', update);
+  document.querySelectorAll('input[name="optType"]').forEach(r => r.addEventListener('change', update));
+  document.querySelectorAll('input[name="rangePos"]').forEach(r => r.addEventListener('change', update));
+
+  // Init advice on page load
+  update();
 </script>
 
 </body>
