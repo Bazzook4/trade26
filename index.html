@@ -147,7 +147,7 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
     <p class="note" style="margin:10px 0 0">Remove deletes one uploaded file and everything from it. Undo reverses the last upload, removal, backup load or clear until you reload the page.</p>
   </div>
 
-  <div class="tabs"><button id="tabD" class="on">Dashboard</button><button id="tabP">Planning</button><button id="tabV">Day view</button><button id="tabR">My rules</button><button id="tabC">Ask Claude</button></div>
+  <div class="tabs"><button id="tabD" class="on">Dashboard</button><button id="tabP">Plan, rules &amp; Claude</button><button id="tabV">Day view</button></div>
 
   <div class="pane" id="paneD">
   <div class="card">
@@ -195,12 +195,10 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
   <div class="card">
     <div class="row" style="justify-content:space-between;margin-bottom:6px">
       <h2 style="margin:0">Trades taken</h2>
-      <span class="row"><label class="note"><input type="checkbox" id="trCh" checked> Show charges line</label><span class="seg"><button id="tM" class="on">By month</button><button id="tD">By day</button></span></span>
+      <span class="row"><label class="note"><input type="checkbox" id="trCh" checked> Show charges line</label><span class="seg"><button id="tM">By month</button><button id="tD" class="on">By day</button></span></span>
     </div>
-    <div class="note" id="trSum" style="margin-bottom:8px"></div>
     <div class="legend" id="trLeg" style="margin-bottom:8px"></div>
     <div class="scroll" id="trChart"></div>
-    <p class="note" style="margin:8px 0 0">Groww rows count one trade each. For Zerodha and Mirae statements, several fills of the same contract on the same day count as one trade. The charges line is brokerage, taxes and fees. Mirae and Groww charges are placed on the day they happened (Groww is shared by turnover). Zerodha only reports charges per financial year, so those are spread over that year's trades by turnover and are an estimate.</p>
   </div>
   </div>
 
@@ -226,9 +224,20 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
     <div class="row note" style="margin-bottom:12px;font-size:13px">My plan: up to <input id="beMax" type="number" min="1" step="1" value="3" class="pin"> trades a day, recover within <input id="beDays" type="number" min="1" step="1" value="20" class="pin"> trading days</div>
     <div id="beBody"></div>
   </div>
-  </div>
-
-  <div class="pane" id="paneC" hidden>
+    <div class="card">
+      <h2>My trading rules</h2>
+      <p class="note" style="margin:0 0 14px">Edit these any time. They are saved in this browser. The daily trade limit also drives the charts on the dashboard.</p>
+      <div class="rf">
+        <label>Stop loss per trade (₹)<input id="rSL" type="number" min="0" step="0.5"></label>
+        <label>Maximum trades per day<input id="rMax" type="number" min="1" step="1"></label>
+        <label>Revenge trade window (minutes)<input id="rRevMin" type="number" min="1" step="1"></label>
+        <label class="full">Indicators on my chart<input id="rInd"></label>
+        <label class="full">How I find a trade<textarea id="rProc"></textarea></label>
+        <label class="full">No revenge trades<textarea id="rRev"></textarea></label>
+      </div>
+      <div class="chips" id="rChips" style="margin-top:14px"></div>
+    </div>
+    <div class="card"><h2>How my history compares with these rules</h2><div id="ruleCheck"></div></div>
     <div class="card">
       <div class="row" style="justify-content:space-between">
         <div><h2 style="margin:0">Ask Claude about your trading</h2><div class="note">Claude sees your uploaded trades, daily and monthly results, Day view fills and your rules. Questions go to Anthropic using your own API key.</div></div>
@@ -255,6 +264,7 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
       </div>
       <div class="note" id="aiNote" style="margin-top:6px"></div>
     </div>
+    <div class="card row" style="justify-content:space-between"><div><h2 style="margin:0">Saved for training</h2><div class="note">Every summary and chat answer is saved with your data, rules and model, in your backup file and account. <span id="trainN"></span></div></div><button class="btn" id="trainExp">Export training file</button></div>
   </div>
 
   <div class="pane" id="paneV" hidden>
@@ -283,22 +293,6 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
     </div>
   </div>
 
-  <div class="pane" id="paneR" hidden>
-    <div class="card">
-      <h2>My trading rules</h2>
-      <p class="note" style="margin:0 0 14px">Edit these any time. They are saved in this browser. The daily trade limit also drives the charts on the dashboard.</p>
-      <div class="rf">
-        <label>Stop loss per trade (₹)<input id="rSL" type="number" min="0" step="0.5"></label>
-        <label>Maximum trades per day<input id="rMax" type="number" min="1" step="1"></label>
-        <label>Revenge trade window (minutes)<input id="rRevMin" type="number" min="1" step="1"></label>
-        <label class="full">Indicators on my chart<input id="rInd"></label>
-        <label class="full">How I find a trade<textarea id="rProc"></textarea></label>
-        <label class="full">No revenge trades<textarea id="rRev"></textarea></label>
-      </div>
-      <div class="chips" id="rChips" style="margin-top:14px"></div>
-    </div>
-    <div class="card"><h2>How my history compares with these rules</h2><div id="ruleCheck"></div></div>
-  </div>
 </div>
 <div class="tip" id="tip"></div>
 <div class="login" id="login" hidden>
@@ -971,7 +965,7 @@ function initRules(){
   initRulesValues();
   const bind=(id,key,num)=>$(id).addEventListener('input',()=>{ let v=$(id).value; if(num){ v=+v; if(!(v>0)) return; } RULES[key]=v; saveRules(); if(key==='max'){ $('limT').value=v; renderStats(); renderTrades(); renderBE(); } renderRules(); renderDay(); });
   bind('rRevMin','revMin',1); bind('rSL','sl',1); bind('rMax','max',1); bind('rInd','ind'); bind('rProc','proc'); bind('rRev','rev');
-  const tabs={D:'paneD',P:'paneP',V:'paneV',R:'paneR',C:'paneC'};
+  const tabs={D:'paneD',P:'paneP',V:'paneV'};
   Object.keys(tabs).forEach(k=>$('tab'+k).onclick=()=>{ Object.keys(tabs).forEach(j=>{ $(tabs[j]).hidden=j!==k; $('tab'+j).classList.toggle('on',j===k); }); if(k==='D') renderTrades(); if(k==='V') renderDay(); });
   $('beDays').addEventListener('input',()=>{ const v=+$('beDays').value; if(!(v>=1)) return; beDays=Math.round(v); RULES.beDays=beDays; saveRules(); renderBE(); });
   $('beMax').addEventListener('input',()=>{ const v=+$('beMax').value; if(!(v>=1)) return; RULES.max=Math.round(v); saveRules(); $('rMax').value=RULES.max; $('limT').value=RULES.max; renderStats(); renderTrades(); renderBE(); renderRules(); });
@@ -988,14 +982,13 @@ function renderTop(){
   $('topNote').textContent=DAYS.length?'Ranked by whole trading day, before charges. '+DAYS.length+' trading days, adding up to '+inr(sum)+'.':'';
 }
 
-let tview='m';
+let tview='d';
 function svgEl(tag,a){ const e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in a) e.setAttribute(k,a[k]); return e; }
 function renderTrades(){
-  const host=$('trChart'), leg=$('trLeg'), sum=$('trSum'); host.replaceChildren(); leg.replaceChildren(); sum.textContent='';
+  const host=$('trChart'), leg=$('trLeg'); host.replaceChildren(); leg.replaceChildren();
   if(!DAYS.length){ host.appendChild(el('div','empty','No data yet.')); return; }
   const lim=+$('limT').value||3; const total=DAYS.reduce((a,d)=>a+d.n,0); const over=DAYS.filter(d=>d.n>lim); const excess=over.reduce((a,d)=>a+d.n-lim,0);
   const showC=$('trCh').checked; const totC=Object.values(CHG).reduce((a,b)=>a+b,0);
-  sum.textContent=total+' trades over '+DAYS.length+' trading days, about '+(total/DAYS.length).toFixed(1)+' per day. '+over.length+' days went above '+lim+' trades, adding '+excess+' extra trades.'+(totC?' Charges so far: '+inr(totC)+', about '+inr(totC/total)+' per trade.':'');
   [['var(--accent)','Trades within the daily limit ('+lim+')'],['var(--dr)','Extra trades above the limit']].concat(showC&&totC?[['#d97706','Charges (right axis, in rupees)']]:[]).forEach(([c,t])=>{ const sp=el('span'); const b=el('i','sw'); b.style.background=c; sp.append(b,document.createTextNode(t)); leg.appendChild(sp); });
   let items=[];
   if(tview==='m'){
@@ -1086,13 +1079,13 @@ $('vCal').onclick=()=>{view='cal';$('vCal').classList.add('on');$('vCmp').classL
 $('vCmp').onclick=()=>{view='cmp';$('vCmp').classList.add('on');$('vCal').classList.remove('on');renderMap();};
 $('exportBtn').onclick=()=>{ const a=el('a'); a.href=URL.createObjectURL(new Blob([backupJSON()],{type:'application/json'})); a.download='trading-day-map-backup.json'; a.click(); };
 $('importBtn').onclick=()=>$('importFile').click();
-$('importFile').onchange=async e=>{ try{ const j=JSON.parse(await e.target.files[0].text()); if(!j.files) throw 0; snap(); store={files:j.files}; if(j.day&&Array.isArray(j.day.fills)){ DAY={fills:j.day.fills,charges:j.day.charges||{}}; saveDay(); renderDay(); } if(j.rules){ RULES={...RDEF,...j.rules}; saveRules(); initRulesValues(); } save(); refresh(); autoBackup(); $('log').replaceChildren();  }catch(err){ $('log').replaceChildren(); say('err','That file is not a valid backup.'); } e.target.value=''; };
+$('importFile').onchange=async e=>{ try{ const j=JSON.parse(await e.target.files[0].text()); if(!j.files) throw 0; snap(); store={files:j.files}; if(j.day&&Array.isArray(j.day.fills)){ DAY={fills:j.day.fills,charges:j.day.charges||{}}; saveDay(); renderDay(); } if(j.rules){ RULES={...RDEF,...j.rules}; saveRules(); initRulesValues(); } if(j.ai) mergeAI(j.ai); renderAILog(); save(); refresh(); autoBackup(); $('log').replaceChildren();  }catch(err){ $('log').replaceChildren(); say('err','That file is not a valid backup.'); } e.target.value=''; };
 $('clearBtn').onclick=()=>{ if(confirm('Remove all uploaded data from this page? You can still undo this until you reload.')){ snap(); store={files:[]}; save(); refresh(); autoBackup(); $('log').replaceChildren(); } };
 
 /* ---------- auto-backup into one chosen file ---------- */
 const FSA=typeof window.showSaveFilePicker==='function';
 let abHandle=null, abLast=null;
-function backupObj(){ return {files:store.files, day:DAY, rules:RULES}; }
+function backupObj(){ return {files:store.files, day:DAY, rules:RULES, ai:AILOG}; }
 function backupJSON(){ return JSON.stringify({...backupObj(), savedAt:new Date().toISOString()}); }
 function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('trading-day-map-fs',1); r.onupgradeneeded=()=>r.result.createObjectStore('h'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 async function idbSet(v){ const db=await idb(); return new Promise(res=>{ const tx=db.transaction('h','readwrite'); v==null?tx.objectStore('h').delete('backup'):tx.objectStore('h').put(v,'backup'); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }
@@ -1138,6 +1131,32 @@ async function initBackup(){
   $('abNow').onclick=()=>{ abLast=null; abSaveNow(); };
   $('abOff').onclick=async()=>{ abHandle=null; await idbSet(null); abStatus('Auto-backup stopped.'); };
 }
+
+/* ---------- saved Claude conversations (kept for training) ---------- */
+const ALKEY='trading-ai-log-v1';
+let AILOG={ctx:{},items:[]};
+try{ const t=localStorage.getItem(ALKEY); if(t) AILOG=normAI(JSON.parse(t)); }catch(e){}
+function normAI(a){ return {ctx:(a&&a.ctx&&typeof a.ctx==='object')?a.ctx:{}, items:(a&&Array.isArray(a.items))?a.items:[]}; }
+function mergeAI(src){   // union by id, so restoring a backup never loses entries made on another device
+  src=normAI(src); const have=new Set(AILOG.items.map(x=>x.id));
+  src.items.forEach(x=>{ if(x&&x.id&&!have.has(x.id)){ AILOG.items.push(x); have.add(x.id); } });
+  AILOG.items.sort((a,b)=>a.at-b.at); Object.assign(AILOG.ctx,src.ctx);
+  try{ localStorage.setItem(ALKEY,JSON.stringify(AILOG)); }catch(e){}
+}
+async function quietBackup(){ if(!abHandle||!store.files.length) return; try{ if(await abHandle.queryPermission({mode:'readwrite'})==='granted') await abWrite(); }catch(e){} }
+// one entry per Claude answer: what was asked, the full answer, the model, and the data it was based on
+function logAI(kind,model,system,messages,answer,extra){
+  const sig=dataSig(); if(system&&!AILOG.ctx[sig]) AILOG.ctx[sig]=system;
+  AILOG.items.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),at:Date.now(),kind,model,sig,rules:{...RULES},messages,answer,...(extra||{})});
+  try{ localStorage.setItem(ALKEY,JSON.stringify(AILOG)); }catch(e){}
+  cloudSave(); quietBackup(); renderAILog();
+}
+// training export: one JSON object per line in the standard chat format (system, user, assistant)
+function exportTraining(){
+  const lines=AILOG.items.map(x=>JSON.stringify({messages:[{role:'system',content:AILOG.ctx[x.sig]||''},...x.messages.map(m=>({role:m.role,content:typeof m.content==='string'?m.content:(m.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('')})),{role:'assistant',content:x.answer}],metadata:{id:x.id,kind:x.kind,model:x.model,at:new Date(x.at).toISOString(),rules:x.rules,period:x.period||null,figures:x.figures||null}}));
+  const a=el('a'); a.href=URL.createObjectURL(new Blob([lines.join('\n')+'\n'],{type:'application/jsonl'})); a.download='trading-claude-training-'+new Date().toISOString().slice(0,10)+'.jsonl'; a.click();
+}
+function renderAILog(){ const n=AILOG.items.length, b=$('trainN'); if(b) b.textContent=n+(n===1?' Claude answer saved':' Claude answers saved')+' ('+AILOG.items.filter(x=>x.kind==='summary').length+' summaries, '+AILOG.items.filter(x=>x.kind==='chat').length+' chat)'; }
 
 /* ---------- Ask Claude ---------- */
 const AIK='trading-claude-key', AIM='trading-claude-model';
@@ -1213,6 +1232,7 @@ async function aiSend(q){
     const content=r.blocks.filter(b=>b&&!(b.type==='text'&&!b.text));
     if(!content.length) throw new Error('Claude returned an empty answer. Try again.');
     aiMsgs.push({role:'assistant',content});
+    logAI('chat',$('aiModel').value,aiSys,aiMsgs.slice(0,-1).map(m=>({role:m.role,content:typeof m.content==='string'?m.content:m.content.filter(b=>b.type==='text').map(b=>b.text).join('')})),r.text);
     if(!r.text) out.textContent='(no text in the answer)';
     if(r.stop==='max_tokens') $('aiNote').textContent='The answer was cut off because it hit the length limit.';
   }catch(e){ aiMsgs.pop(); out.className='msg e'; out.textContent=e.message; $('aiIn').value=q; }
@@ -1247,25 +1267,25 @@ function renderSummary(){
   const ps=periodStats(sumN); const shortD=s=>new Date(s+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
   $('sumRange').textContent=shortD(ps.start)+' to '+shortD(ps.end)+' · '+ps.days+' trading days · '+ps.trades+' trades';
   const c=sumCache()[sumN];
-  if(c&&c.sig===dataSig()+'|v2'){ const d=el('div'); d.style.whiteSpace='pre-wrap'; d.innerHTML=md(c.text); B.appendChild(d); M.textContent='Written by Claude '+new Date(c.at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'.'; $('sumGo').textContent='Write again'; return; }
-  B.appendChild(el('div','note',c?'Your data or the summary style has changed since the last summary. Press Write summary for a fresh one.':'Press Write summary for a mentor-style review of this period: summary, what is going wrong, what happens if you carry on, and what to do next. Uses your API key from the Ask Claude tab.'));
+  if(c&&c.sig===dataSig()+'|v3'){ const d=el('div'); d.style.whiteSpace='pre-wrap'; d.innerHTML=md(c.text); B.appendChild(d); M.textContent='Written by Claude '+new Date(c.at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'.'; $('sumGo').textContent='Write again'; return; }
+  B.appendChild(el('div','note',c?'Your data or the summary style has changed since the last summary. Press Write summary for a fresh one.':'Press Write summary for a 3-line review of this period: result, biggest problem, what to do next. Uses your API key from the Plan, rules & Claude tab.'));
   $('sumGo').textContent='Write summary';
 }
 async function writeSummary(){
   if(sumBusy||!DAYS.length) return;
-  const key=aiKeyNow(); if(!key){ $('sumBody').replaceChildren(el('div','neg','Add your Claude API key in the Ask Claude tab first.')); return; }
-  const n=sumN, ps=periodStats(n), sig=dataSig()+'|v2';
+  const key=aiKeyNow(); if(!key){ $('sumBody').replaceChildren(el('div','neg','Add your Claude API key in the Plan, rules & Claude tab first.')); return; }
+  const n=sumN, ps=periodStats(n), sig=dataSig()+'|v3';
   if(!ps.days){ $('sumBody').replaceChildren(el('div','note','No trades in the last '+n+' days of your data.')); return; }
   const q='You are reviewing this trader the way an experienced trading mentor does: a professional who coaches many people who are new to trading. Be honest and direct, kind but not soft, and use plain English (explain any trading term in a few words). Talk to the trader as "you".'+
     '\n\nReview my trading for the last '+n+' calendar days of my data, '+ps.start+' to '+ps.end+'.\n\nFigures for this period, already calculated from my data. Use these exact numbers (rupees; P/L is before charges unless it says net; "ifThisContinues" projects the net result per trading day of this period forward):\n'+JSON.stringify(ps,null,1)+
-    '\n\nWrite it in exactly these four parts. Each part is a bold title on its own line, followed by bullet points starting with "- ". Each bullet is one or two short sentences with numbers.\n**Summary** (3 bullets): the result, how it compares with my overall numbers, and what went right.\n**What is going wrong** (2 to 3 bullets): the main mistakes or habits behind the losses, backed by numbers from my data (for example trade count, rule breaks, average loss bigger than average win, charges).\n**If you carry on like this** (2 bullets): what happens over the next 20, 60 and 120 trading days using the ifThisContinues figures, and what that does to a beginner\'s account and confidence over time. If the period is profitable, say what keeps it that way instead.\n**What to do next** (2 bullets): specific, practical steps for the next '+n+' days.\n\nUse **bold** only for the 3 to 5 most important facts or warnings in the bullets. No intro line, no closing line, no disclaimer.';
-    '\n\nWrite exactly 5 bullet points, each starting with "- ", one or two short sentences each, with numbers:\n1. Overall result (net P/L, trades, win rate).\n2. How this period compares with my overall averages.\n3. What worked best.\n4. What cost me the most money.\n5. One specific thing to do in the next '+n+' days.\nNo heading, no intro and no closing line.';
+    '\n\nKeep it SHORT. Write exactly 3 bullet points, each starting with "- ", each one sentence of at most 20 words, with a number in it:\n- Result: net P/L, trades and win rate for the period, and how it compares with my overall numbers.\n- Biggest problem: the one habit costing me most (trade count, rule breaks, losses bigger than wins, charges). If the period is profitable, say what keeps it that way.\n- Do next: one specific action for the next '+n+' days.\nNo headings, no intro, no closing line, no disclaimer. Use **bold** on at most 2 key facts in total.';
   sumBusy=true; $('sumGo').disabled=true; const B=$('sumBody'); B.replaceChildren(el('div','note','Claude is writing…')); $('sumMeta').textContent='';
   const d=el('div'); d.style.whiteSpace='pre-wrap';
   try{
     const r=await claudeStream({key,model:$('aiModel').value,system:buildSystem(),messages:[{role:'user',content:q}],onText:t=>{ if(!d.isConnected) B.replaceChildren(d); d.innerHTML=md(t); }});
     if(!r.text) throw new Error('Claude returned an empty answer. Try again.');
     const all=sumCache(); all[n]={sig,text:r.text.trim(),at:Date.now()}; try{ localStorage.setItem(SUMK,JSON.stringify(all)); }catch(e){}
+    logAI('summary',$('aiModel').value,buildSystem(),[{role:'user',content:q}],r.text.trim(),{period:{days:n,start:ps.start,end:ps.end},figures:ps});
   }catch(e){ sumBusy=false; $('sumGo').disabled=false; B.replaceChildren(el('div','neg',e.message)); return; }
   sumBusy=false; $('sumGo').disabled=false; if(sumN===n) renderSummary();
 }
@@ -1280,7 +1300,7 @@ function initAI(){
   $('aiRemember').onchange=()=>{ if(!$('aiRemember').checked) try{ localStorage.removeItem(AIK); }catch(e){} };
   $('aiSend').onclick=()=>aiSend($('aiIn').value);
   $('aiIn').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); aiSend($('aiIn').value); } });
-  $('aiNew').onclick=aiReset;
+  $('aiNew').onclick=aiReset; $('trainExp').onclick=exportTraining; renderAILog();
   const S=$('aiSug'); ['Summarise my results month by month','What is costing me the most money?','What does breaking my trade limit cost me?','Give me 3 things to fix this week'].forEach(t=>{ const b=el('button','chipb',t); b.onclick=()=>aiSend(t); S.appendChild(b); });
 }
 
@@ -1297,6 +1317,7 @@ function applyCloud(d){
   store={files:Array.isArray(d.files)?d.files:[]};
   DAY=d.day&&Array.isArray(d.day.fills)?{fills:d.day.fills,charges:d.day.charges||{}}:{fills:[],charges:{}};
   RULES={...RDEF,...(d.rules||{})};
+  mergeAI(d.ai); renderAILog();
   cloudLast=JSON.stringify(backupObj());
   save(); saveDay(); saveRules(); initRulesValues(); lastSnap=null; refresh(); renderDay();
 }
@@ -1367,6 +1388,7 @@ async function signOut(){
   if(!confirm('Sign out? Your data stays safe in your account and is removed from this device.')) return;
   clearTimeout(cloudTimer); await cloudPush(false);
   await sb.auth.signOut(); sbUser=null; cloudLast=null;
+  AILOG={ctx:{},items:[]}; try{ localStorage.removeItem(ALKEY); }catch(e){} renderAILog();
   store={files:[]}; DAY={fills:[],charges:{}}; save(); saveDay(); lastSnap=null;
   try{ localStorage.removeItem(SYNC_KEY); }catch(e){}
   refresh(); renderDay(); showAcct(); lgSet('in');
