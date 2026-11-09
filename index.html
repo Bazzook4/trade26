@@ -1342,7 +1342,12 @@ function lgSet(mode,msg){
   $('lgForgot').hidden=up||forgot||reset;
   $('lgMsg').textContent=msg||''; $('lgMsg').className='note';
 }
-function lgErr(m){ $('lgMsg').textContent=m; $('lgMsg').className='neg'; }
+function lgErr(m){
+  const s=String(m||''), t=/not confirmed/i.test(s)?'This account has not been confirmed yet. Click the link in the confirmation email, or ask the account owner to switch off email confirmation in Supabase.'
+    :/rate limit/i.test(s)?'Too many emails were sent in the last hour. Wait about an hour and try again.'
+    :/not authorized|not allowed/i.test(s)?'Supabase would not send an email to that address. Its free email service only sends to your Supabase team members. Switch off email confirmation in Supabase, or set up your own email (SMTP).'
+    :/already registered/i.test(s)?'That email already has an account. Sign in instead, or use Forgot password.':s;
+  $('lgMsg').textContent=t; $('lgMsg').className='neg'; }
 function onSignedIn(user){ sbUser=user; try{ localStorage.removeItem(LOCAL_MODE); }catch(e){} $('login').hidden=true; showAcct(); cloudPull(true); }
 async function lgSubmit(e){
   e.preventDefault(); const email=$('lgEmail').value.trim(), pass=$('lgPass').value; const back=location.origin+location.pathname;
@@ -1376,7 +1381,9 @@ async function initCloud(){
   $('acctBtn').onclick=()=>sbUser?signOut():lgSet('in');
   sb.auth.onAuthStateChange((ev,s)=>{ if(ev==='PASSWORD_RECOVERY') lgSet('reset','Enter a new password for '+(s&&s.user?s.user.email:'your account')+'.'); });
   document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&sbUser) cloudPull(false); });
+  const hp=new URLSearchParams(location.hash.slice(1)+'&'+location.search.slice(1)), herr=hp.get('error_description')||hp.get('error');
   const {data:{session}}=await sb.auth.getSession();
+  if(herr&&!session){ history.replaceState(null,'',location.pathname); showAcct(); lgSet('in'); return lgErr(/expired|invalid/i.test(herr)?'That email link has expired or was already used. Sign in, or ask for a new link.':herr.replace(/\+/g,' ')); }
   if(session&&$('login').hidden!==false) return onSignedIn(session.user);
   if(session) { sbUser=session.user; showAcct(); return; }   // recovery link: wait for the new password
   showAcct(); if(localStorage.getItem(LOCAL_MODE)!=='1') lgSet('in');
