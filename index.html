@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Trading day map</title>
+<title>SJ Trade 26</title>
 <style>
 :root{
   --lg:#8fd694; --dg:#1a7f37; --lr:#f0807a; --dr:#b3261e; --none:#eceff1; --zero:#cfd8dc;
@@ -107,20 +107,23 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
 .lbox input{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px}
 .lbox .btn{padding:10px}
 .lbox a{color:var(--accent);text-decoration:none}
-#acct{justify-content:flex-end}
+#acct{justify-content:flex-end;gap:6px;font-size:12px}
+#acct span:empty{display:none}
+#acct span+span::before,#acct span+.lnk::before{content:"· ";color:var(--muted)}
+.lnk{border:0;background:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="head">
     <div>
-      <h1>Trading day map</h1>
-      <p class="sub">Your trading results at a glance. When you sign in, your data is saved to your own private account so it is the same on every device. Questions you ask in the Ask Claude tab are sent to Anthropic.</p>
+      <h1>SJ Trade 26</h1>
+      <p class="sub" id="quote" style="font-style:italic"></p>
     </div>
     <div class="up">
-      <div class="row"><button class="btn" id="refreshBtn" title="Reload saved data and redraw everything">Refresh</button><button class="btn" id="manageBtn">Manage data</button><button class="btn primary" id="uploadBtn">Upload statements</button></div>
+      <div class="row"><button class="btn" id="manageBtn">Manage data</button><button class="btn primary" id="uploadBtn">Upload statements</button></div>
       <input id="file" type="file" multiple accept=".pdf,.xlsx,.xls,.csv" hidden>
-      <div class="row note" id="acct"><span id="acctTxt"></span><button class="btn" id="acctBtn" hidden style="padding:2px 10px;font-size:12px"></button><span id="syncNote"></span></div>
+      <div class="row note" id="acct"><span id="acctTxt"></span><span id="syncNote"></span><button id="acctBtn" class="lnk" hidden></button></div>
       <div class="log" id="log"></div>
     </div>
   </div>
@@ -297,7 +300,7 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
 <div class="tip" id="tip"></div>
 <div class="login" id="login" hidden>
   <form class="lbox" id="loginForm">
-    <div style="font-size:20px;font-weight:600">Trading day map</div>
+    <div style="font-size:20px;font-weight:600">SJ Trade 26</div>
     <div style="font-weight:600" id="lgTitle">Sign in</div>
     <input id="lgEmail" type="email" placeholder="Email" autocomplete="username" required>
     <input id="lgPass" type="password" placeholder="Password" autocomplete="current-password">
@@ -1063,7 +1066,6 @@ async function handle(files){
   if(added>0){ lastSnap=before; undoState(); const r=el('div','ok','Uploaded '+added+(added===1?' file. ':' files. ')); const u=el('button','btn','Undo'); u.style.cssText='padding:1px 8px;font-size:12px'; u.onclick=doUndo; r.appendChild(u); $('log').appendChild(r); }
 }
 function doUndo(){ if(!lastSnap) return; store=JSON.parse(lastSnap); lastSnap=null; save(); refresh(); autoBackup(); $('log').replaceChildren(); say('ok','Last change undone.'); }
-$('refreshBtn').onclick=()=>{ if(persistent){ try{ const t=localStorage.getItem(KEY); if(t) store=JSON.parse(t); }catch(e){} } refresh(); };
 $('manageBtn').onclick=()=>{ const m=$('managePanel'); m.hidden=!m.hidden; };
 $('undoBtn').onclick=doUndo;
 $('moreBtn').onclick=()=>{ const m=$('statsMore'); m.hidden=!m.hidden; $('moreBtn').textContent=m.hidden?'Show more stats':'Show fewer stats'; };
@@ -1349,7 +1351,7 @@ async function cloudPull(first){
 function showAcct(){
   const t=$('acctTxt'), b=$('acctBtn'); if(!sb){ t.textContent=''; b.hidden=true; return; }
   b.hidden=false;
-  if(sbUser){ t.textContent='Signed in as '+sbUser.email; b.textContent='Sign out'; }
+  if(sbUser){ t.textContent=sbUser.email; b.textContent='Sign out'; }
   else { t.textContent='Not signed in. Data is only on this device.'; b.textContent='Sign in'; cloudStatus(''); }
 }
 function lgSet(mode,msg){
@@ -1411,6 +1413,9 @@ async function initCloud(){
   showAcct(); if(localStorage.getItem(LOCAL_MODE)!=='1') lgSet('in');
 }
 
+/* one short motivational line, a different one each day */
+(function(){ const Q=['Protect your capital first. Profits follow discipline.','One good trade is worth waiting for. Three is the limit.','Follow the plan, not the mood.','A small loss taken on time is a win for discipline.','Calm hands make money. Rushed hands pay charges.','The market will be here tomorrow. Make sure your account is too.','Be patient. Let the setup come to you.'];
+  const d=Math.floor(Date.now()/864e5); $('quote').textContent='“'+Q[d%Q.length]+'”'; })();
 load(); save(); initRules(); initDay(); initAI(); initSummary(); initBackup(); refresh(); renderDay(); initCloud();
 window.__app={get days(){return DAYS;},get groups(){return GROUPS;},get chg(){return CHG;},get store(){return store;}};
 </script>
