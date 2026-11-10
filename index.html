@@ -65,8 +65,8 @@ h2{margin:0 0 10px;font-size:16px;font-weight:600}
 .compact .b{width:26px;height:26px;border-radius:4px}
 .b.dn{display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
 .b.dn.dg,.b.dn.dr{color:#fff}
-.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start}
-.two.wide{grid-template-columns:repeat(auto-fit,minmax(460px,1fr))}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start}
+.two.wide{grid-template-columns:repeat(auto-fit,minmax(min(460px,100%),1fr))}
 .two>.card{min-width:0}
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-size:13px}
@@ -207,8 +207,8 @@ tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0}
 
   <div class="note" id="topNote"></div>
   <div class="two">
-    <div class="card"><h2>Top 5 winning days</h2><table id="topP"></table></div>
-    <div class="card"><h2>Top 5 losing days</h2><table id="topL"></table></div>
+    <div class="card"><h2>Top 10 winning days</h2><table id="topP"></table></div>
+    <div class="card"><h2>Top 10 losing days</h2><table id="topL"></table></div>
   </div>
 
   <div class="card" hidden>
@@ -974,13 +974,13 @@ function initRules(){
   $('beMax').addEventListener('input',()=>{ const v=+$('beMax').value; if(!(v>=1)) return; RULES.max=Math.round(v); saveRules(); $('rMax').value=RULES.max; $('limT').value=RULES.max; renderStats(); renderTrades(); renderBE(); renderRules(); });
 }
 function topTable(id,rows){
-  const t=$(id); t.replaceChildren(); const hr=el('tr'); ['Date','Result','Biggest trade','Trades'].forEach((h,i)=>hr.appendChild(el('th',i>=1&&i!==2?'r':'',h))); t.appendChild(hr);
-  if(!rows.length){ const tr=el('tr'); const td=el('td','note','None'); td.colSpan=4; tr.appendChild(td); t.appendChild(tr); }
-  rows.forEach(d=>{ const tr=el('tr'); tr.append(el('td',null,fmtDate(d.d)),el('td','r '+sign(d.pl),inr(d.pl)),el('td',null,d.s),el('td','r',String(d.n))); t.appendChild(tr); });
+  const t=$(id); t.replaceChildren(); const hr=el('tr'); ['Date','Result','Trades'].forEach((h,i)=>hr.appendChild(el('th',i>=1?'r':'',h))); t.appendChild(hr);
+  if(!rows.length){ const tr=el('tr'); const td=el('td','note','None'); td.colSpan=3; tr.appendChild(td); t.appendChild(tr); }
+  rows.forEach(d=>{ const tr=el('tr'); tr.append(el('td',null,fmtDate(d.d)),el('td','r '+sign(d.pl),inr(d.pl)),el('td','r',String(d.n))); t.appendChild(tr); });
 }
 function renderTop(){
-  topTable('topP',[...DAYS].sort((a,b)=>b.pl-a.pl).slice(0,5).filter(d=>d.pl>0));
-  topTable('topL',[...DAYS].sort((a,b)=>a.pl-b.pl).slice(0,5).filter(d=>d.pl<0));
+  topTable('topP',[...DAYS].sort((a,b)=>b.pl-a.pl).slice(0,10).filter(d=>d.pl>0));
+  topTable('topL',[...DAYS].sort((a,b)=>a.pl-b.pl).slice(0,10).filter(d=>d.pl<0));
   const sum=DAYS.reduce((x,d)=>x+d.pl,0);
   $('topNote').textContent=DAYS.length?'Ranked by whole trading day, before charges. '+DAYS.length+' trading days, adding up to '+inr(sum)+'.':'';
 }
